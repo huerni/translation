@@ -1,0 +1,7 @@
+中英文原始数据：
+news-commentary-v13.zh-en
+news-commentary-v13.zh-en
+
+中英文分词并去除句长>40的句子：
+en20180913s
+zhtoken20180913s
