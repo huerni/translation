@@ -23,7 +23,7 @@ root.wm_title("Translation")
 root.iconbitmap('./logo.ico')
 w = root.winfo_screenwidth()
 h = root.winfo_screenheight()
-root.geometry("%dx%d+%d+%d" %(1000, 600, (w/2)-500, (h/2)-300))
+root.geometry("%dx%d+%d+%d" % (1000, 600, (w/2)-500, (h/2)-300))
 root.configure(bg='white')
 
 fm1 = ttk.Frame(root)

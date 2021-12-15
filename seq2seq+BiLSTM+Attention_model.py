@@ -1,4 +1,5 @@
 import tensorflow as tf
+from keras.layers import Reshape
 from tensorflow import keras
 import pandas as pd
 import os
@@ -11,7 +12,8 @@ from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from sklearn.model_selection import train_test_split
 
-from tensorflow.keras.layers import LSTM, Dropout, Dense, Embedding, Bidirectional, Add, Concatenate, Dropout
+from tensorflow.keras.layers import LSTM, Dropout, Dense, Embedding, Bidirectional, Add, Concatenate, Dropout, Activation, BatchNormalization, TimeDistributed, \
+    RepeatVector, Dot
 from tensorflow.keras import Input, Model
 from util import preprocess_sentence
 
@@ -88,16 +90,47 @@ chi_padded= np.array(chi_padded)
 x_train, x_test, y_train, y_test = train_test_split(eng_padded, chi_padded, test_size=0.1, random_state=0)
 
 
+
+def one_step_attention(a, s_prev):
+    """
+    Attention机制的实现，返回加权后的Context Vector
+
+    @param a: BiRNN的隐层状态
+    @param s_prev: Decoder端LSTM的上一轮隐层输出
+
+    Returns:
+    context: 加权后的Context Vector
+    """
+
+    # 将s_prev复制max_eng_len次
+    repeator = RepeatVector(max_eng_len)
+    concatenator = Concatenate(axis=-1)
+    densor_tanh = Dense(32, activation="tanh")
+    densor_relu = Dense(1, activation="relu")
+    activator = Activation('softmax', name='attention_weights')
+    dotor = Dot(axes=1)
+    s_prev = repeator(s_prev)
+    # 拼接BiRNN隐层状态与s_prev
+    concat = concatenator([a, s_prev])
+    # 计算energies
+    e = densor_tanh(concat)
+    energies = densor_relu(e)
+    # 计算weights
+    alphas = activator(energies)
+    # 加权得到Context Vector
+    context = dotor([alphas, a])
+
+    return context
+
 '''编码器Encoder'''
 encoder_input = Input(shape=(None, )) # 输入层
 encoder_embd = Embedding(ENG_VOCAB_SIZE, 256, mask_zero=True)(encoder_input) # 嵌入层
-encoder_lstm = Bidirectional(LSTM(128, return_state=True)) # BiLSTM层
+encoder_lstm = Bidirectional(LSTM(128, return_state=True, return_sequences=True)) # BiLSTM层
 '''输入嵌入层输出，输出 编码输出，前向状态  后向状态'''
 encoder_output, forw_state_h, forw_state_c, back_state_h, back_state_c = encoder_lstm(encoder_embd)
 state_h_final = Concatenate()([forw_state_h, back_state_h])
 state_c_final = Concatenate()([forw_state_c, back_state_c])
 
-# Now take only states and create context vector
 '''上下文向量'''
 encoder_states = [state_h_final, state_c_final]
 
@@ -106,6 +139,14 @@ decoder_input = Input(shape=(None,)) # 输入层
 decoder_embd = Embedding(CHI_VOCAB_SIZE, 256, mask_zero=True) # 嵌入层
 decoder_embedding= decoder_embd(decoder_input)
 decoder_lstm = LSTM(256, return_state=True, return_sequences=True ) # LSTM层
+reshapor = Reshape((1, len(CHI_VOCAB_SIZE)))
+concator = Concatenate(axis=-1)
+out0 = Input(shape=(CHI_VOCAB_SIZE, ), name='out0')
+out = reshapor(out0)
+for t in range(max_chi_len):
+    context = one_step_attention(encoder_output, encoder_states)
+    context = concator([context, reshapor(out)])
+
 decoder_outputs, _, _ = decoder_lstm(decoder_embedding, initial_state=encoder_states) # 解码器输出
 decoder_dense = Dense(CHI_VOCAB_SIZE, activation='softmax') # 重建层
 decoder_outputs = decoder_dense(decoder_outputs)
