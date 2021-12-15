@@ -1,15 +1,5 @@
 import tensorflow as tf
-from tensorflow import keras
-import pandas as pd
-import os
-import re
-import string
-from zhon.hanzi import punctuation
 import numpy as np
-
-from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from sklearn.model_selection import train_test_split
 
 from tensorflow.keras.layers import LSTM, Dropout, Dense, Embedding, Bidirectional, Add, Concatenate, Dropout
 from tensorflow.keras import Input, Model
@@ -28,43 +18,36 @@ chi_word_index = chi_tokenizer.word_index
 CHI_VOCAB_SIZE = len(chi_tokenizer.word_counts)+1
 ENG_VOCAB_SIZE = len(eng_tokenizer.word_counts)+1
 
+
 def get_predicted_sentence(input_seq):
-	# Encode the input as state vectors.
+	# 对输入编码， 得到状态向量
 	states_value = encoder_model.predict(input_seq)
 
-	# Generate empty target sequence of length 1.
+	# 空的长度为1的目标序列
 	target_seq = np.zeros((1, 1))
 
-	# Populate the first character of target sequence with the start character.
+	# 用开始字符填充目标序列的第一个字符。
 	target_seq[0, 0] = chi_word_index['sos']
 
-	# Sampling loop for a batch of sequences
-
-	# (to simplify, here we assume a batch of size 1).
 	stop_condition = False
 	decoded_sentence = ''
 
 	while not stop_condition:
 		output_tokens, h, c = decoder_model.predict([target_seq] + states_value)
-		# Sample a token
 		sampled_token_index = np.argmax(output_tokens[0, -1, :])
 		if sampled_token_index == 0:
 			break
 		else:
-			# convert max index number to arabic word
 			sampled_char = chi_index_word[sampled_token_index]
-		# aapend it ti decoded sent
+
 		decoded_sentence += ' ' + sampled_char
 
-		# Exit condition: either hit max length or find stop token.
-		if (sampled_char == 'eos' or len(decoded_sentence) >= 37):
+		if sampled_char == 'eos':
 			stop_condition = True
 
-		# Update the target sequence (of length 1).
 		target_seq = np.zeros((1, 1))
 		target_seq[0, 0] = sampled_token_index
 
-		# Update states
 		states_value = [h, c]
 
 	return decoded_sentence
@@ -86,7 +69,8 @@ def get_eng_sent(sequence):
 	return sentence
 
 
-model = tf.keras.models.load_model('./modellstm.h5')
+'''读取模型'''
+model = tf.keras.models.load_model('./modellstm (1).h5')
 encoder_output, forw_state_h, forw_state_c, back_state_h, back_state_c = model.get_layer('bidirectional_1').output
 state_h_final = Concatenate()([forw_state_h, back_state_h])
 state_c_final = Concatenate()([forw_state_c, back_state_c])
@@ -111,6 +95,6 @@ decoder_model = Model([decoder_input] + decoder_states_input, [decoder_output2] 
 #for i in range(1):
 #	print(x_test[i].shape)
 #	print("English sentence:", get_eng_sent(x_test[i]))
-#	print("Actual Chinese Sentence:", get_arabic_sentence(y_test[i]))
+#	print("Actual Chinese Sentence:", get_chinese_sentence(y_test[i]))
 #	print("Translated Chinese Sentence:", get_predicted_sentence(x_test[i].reshape(1, 109))[:-4])
 #	print("\n")

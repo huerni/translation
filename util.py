@@ -1,4 +1,3 @@
-from tensorflow.keras.preprocessing.sequence import pad_sequences
 import re
 
 def preprocess_sentence(sentence):

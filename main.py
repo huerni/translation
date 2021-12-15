@@ -42,27 +42,46 @@ with open('eng_tokenizer.pickle', 'rb') as handle:
 
 
 def start_translation(event, *args):
-	english_value = preprocess_sentence(english.get())
-	translator = str.maketrans('', '', string.punctuation)
-	english_value = english_value.translate(translator)
-	english_value = [str(english_value)]
-	english_value = eng_tokenizer.texts_to_sequences(english_value)
-	eng_padded = pad_sequences(english_value, maxlen=109, padding='post')
-	eng_padded = np.array(eng_padded)
-	chinese.set(get_predicted_sentence(eng_padded[0].reshape(1, 109))[:-4])
+	chinese_entry.configure(state="normal")
+	english_pre_value = english_entry.get("0.0", "end")
+	english_list = english_pre_value.split('.')
+	chinese_entry.delete("0.0", "end")
+	for e in english_list:
+		english_value = e.strip()
+		if english_value == "": continue
+		print(english_value)
+		translator = str.maketrans('', '', string.punctuation)
+		english_value = english_value.translate(translator)
+		english_value = [str(english_value)]
+		english_value = eng_tokenizer.texts_to_sequences(english_value)
+		eng_padded = pad_sequences(english_value, maxlen=109, padding='post')
+		eng_padded = np.array(eng_padded)
+		chinese_entry.insert("end", get_predicted_sentence(eng_padded[0].reshape(1, 109))[:-4] + "。")
+	chinese_entry.configure(state="disabled")
+	return 'break'
+
+def button_delete(event, *args):
+	if english_entry.get("0.0", "end").strip() == "ENTER键开始翻译".strip():
+		english_entry.delete("0.0", "end")
 
 e_label=ttk.Label(fm1, text="英语: ", font=('Calibri', 15))
 e_label.pack(side=tkinter.LEFT)
-english = tkinter.StringVar()
-english_entry = tkinter.Text(fm1, font=("Calibri 14"))
-#english_entry.insert(0, '回车键开始翻译')
-english_entry.pack(side=tkinter.TOP,  fill=tkinter.BOTH,  expand = 1)
+'''英语输入'''
+scrollbar_v = tkinter.Scrollbar(fm1)
+scrollbar_v.pack(side=tkinter.RIGHT, fill=tkinter.Y)
+english_entry = tkinter.Text(fm1, font=("Calibri 14"), width=100, height=13,  yscrollcommand=scrollbar_v.set, wrap=tkinter.CHAR, highlightcolor='black')
+english_entry.insert("0.0", "\n\n\n\n                                                                                       ENTER键开始翻译")
+english_entry.pack()
+english_entry.bind("<Button-1>", button_delete)
 english_entry.bind("<Return>", start_translation)
 
+
+'''中文输出'''
 c_label=ttk.Label(fm2, text="中文: ", font=('Calibri', 15))
 c_label.pack(side=tkinter.LEFT)
-chinese = tkinter.StringVar()
-chinese_entry = tkinter.Text(fm2, font=("Calibri 14"),  state='disabled')
+scrollbar_c = tkinter.Scrollbar(fm2)
+scrollbar_c.pack(side=tkinter.RIGHT, fill=tkinter.Y)
+chinese_entry = tkinter.Text(fm2, font=("Calibri 14"), yscrollcommand=scrollbar_v.set, wrap=tkinter.CHAR)
 chinese_entry.pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=1)
 
 
